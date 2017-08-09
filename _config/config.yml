@@ -1,0 +1,21 @@
+---
+name: 'okta'
+---
+Injector:
+  Okta:
+    factory: OktaFactory
+  RequestProcessor:
+    properties:
+      filters:
+        - '%$OktaRequestFilter'
+
+Member:
+  extensions:
+    - 'OktaMemberExtension'
+
+Director:
+  rules:
+    'okta//$Action': 'OktaController'
+
+Security:
+  logout_url: 'okta/slo'

@@ -1,0 +1,17 @@
+Member:
+  member1:
+    FirstName: login member
+    Surname: One
+Page:
+  test-page:
+    Title: Test Page Title
+Subsite:
+  subsite1:
+    Title: Subsite1 Name
+  domaintest1:
+    Title: Test 1
+SubsiteDomain:
+  subsite1:
+    SubsiteID: =>Subsite.subsite1
+    Domain: subsite1.*
+    Protocol: automatic

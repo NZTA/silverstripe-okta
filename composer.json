@@ -1,0 +1,25 @@
+{
+  "name": "nzta/okta",
+  "description": "A module for okta integration",
+  "type": "silverstripe-module",
+  "homepage": "https://github.com/NZTransportAgency/okta",
+  "keywords": [
+    "silverstripe",
+    "okta",
+    "sso",
+    "cms"
+  ],
+  "license": "BSD-3-Clause",
+  "support": {
+    "issues": "https://github.com/NZTransportAgency/okta/issues"
+  },
+  "require": {
+        "silverstripe/framework": "~3.4",
+        "silverstripe/cms": "~3.4",
+        "silverstripe/queuedjobs": "^2.9",
+        "guzzlehttp/guzzle": "^6.2"
+    },
+    "require-dev": {
+        "phpunit/PHPUnit": "~3.7"
+    }
+}
