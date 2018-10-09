@@ -1,5 +1,5 @@
 {
-  "name": "nzta/okta",
+  "name": "nzta/silverstripe-okta",
   "description": "A module for okta integration",
   "type": "silverstripe-module",
   "homepage": "https://github.com/NZTransportAgency/okta",
