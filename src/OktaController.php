@@ -1,6 +1,17 @@
 <?php
 
-class OktaController extends Page_Controller
+namespace NZTA\Okta;
+
+use SilverStripe\Control\Controller;
+use SilverStripe\Control\Director;
+use SilverStripe\Control\HTTPRequest;
+use SilverStripe\Control\HTTPResponse;
+use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Security\Security;
+use SilverStripe\Subsites\Model\Subsite;
+use OneLogin_Saml2_Error;
+
+class OktaController extends \PageController
 {
     /**
      * @var array
@@ -13,23 +24,26 @@ class OktaController extends Page_Controller
 
     /**
      * Redirects to okta login
+     *
+     * @return \SilverStripe\Control\HTTPResponse
      */
     public function index()
     {
-        $okta = Injector::inst()->create('Okta');
+        $okta = Injector::inst()->create(Okta::class);
+
         return $this->redirect($okta->getLoginUrl());
     }
 
     /**
      * Performs okta and silverstripe login
      *
-     * @param SS_HTTPRequest $request
+     * @param HTTPRequest $request
      *
-     * @return SS_HTPResponse
+     * @return HTTPResponse
      */
-    public function sso(SS_HTTPRequest $request)
+    public function sso(HTTPRequest $request)
     {
-        $okta = Injector::inst()->create('Okta');
+        $okta = Injector::inst()->create(Okta::class);
         $relay = $okta->getLoginUrl();
 
         // Attempt single sign on
@@ -47,20 +61,21 @@ class OktaController extends Page_Controller
     /**
      * Performs okta and silverstripe logout
      *
-     * @param SS_HTTPRequest $request
+     * @param HTTPRequest $request
      *
-     * @return SS_HTTPResponse
+     * @return bool|HTTPResponse|String
      * @throws OneLogin_Saml2_Error
      */
-    public function slo(SS_HTTPRequest $request)
+    public function slo(HTTPRequest $request)
     {
+        $session = $this->getRequest()->getSession();
         // Allows the user to see the loggedout page. We're not bothered about unsetting
         // this later as it only exists to protect the website from people who have not
         // logged in at all.
-        Session::set('hasLoggedOut', true);
+        $session->set('hasLoggedOut', true);
 
         try {
-            $okta = Injector::inst()->create('Okta');
+            $okta = Injector::inst()->create(Okta::class);
         } catch (OneLogin_Saml2_Error $e) {
             // if we're in dev we can redirect to the ss logout
             if (Director::isDev()) {
@@ -76,20 +91,20 @@ class OktaController extends Page_Controller
         }
 
         return $this->logoutFromSilverStripe($okta);
-
     }
 
     /**
      * logout from SilverStripe and redirect to Okta
      * to logged out from Okta
+     * @param $okta
      *
-     * @param  \Okta $okta
-     *
-     * @return bool|\SS_HTTPResponse
+     * @return HTTPResponse|string
      */
     private function logoutFromSilverStripe($okta)
     {
-        if (!empty(Session::get('samlNameId'))) {
+        $session = $this->getRequest()->getSession();
+
+        if (!empty($session->get('samlNameId'))) {
             $logoutUrl = $okta->getLogoutUrl();
         } else {
             $logoutUrl = Director::baseUrl();
@@ -97,7 +112,7 @@ class OktaController extends Page_Controller
 
         $this->clearSession();
 
-        if (SapphireTest::is_running_test()) {
+        if (defined('RUNNING_TESTS')) {
             return $logoutUrl;
         }
 
@@ -105,64 +120,75 @@ class OktaController extends Page_Controller
     }
 
     /**
-     * After logged out from Okta, Okta will return POST SAML response to the same URL (/okta/slo)
+     * After logged out from Okta, Okta will return POST SAML response
+     * to the same URL (/okta/slo)
      * including RelayState, the one we set before send the logout request to Okta,
      *
-     * @param \SS_HTTPRequest $request
-     * @param $okta
+     * @param HTTPRequest $request
+     * @param Okta $okta
      *
-     * @return \SS_HTTPResponse|String
+     * @return HTTPResponse|String
      */
-    private function logoutResponseFromOkta(SS_HTTPRequest $request, $okta)
+    private function logoutResponseFromOkta(HTTPRequest $request, $okta)
     {
         $okta->slo();
 
         $relayState = $request->postVar('RelayState');
 
-        $subsiteDomains = [];
-        $subsites = Subsite::get();
+        if (class_exists(Subsite::class)) {
+            $subsiteDomains = [];
+            $subsites = Subsite::get();
 
-        foreach ($subsites as $subsite) {
-            array_push($subsiteDomains, $subsite->domain());
+            foreach ($subsites as $subsite) {
+                array_push($subsiteDomains, $subsite->domain());
+            }
         }
 
-        $relayStateWithoutProtocol = preg_replace('#^https?://#', '', str_replace('/okta/loggedout', '', $relayState));
+        $relayStateWithoutProtocol = preg_replace(
+            '#^https?://#',
+            '',
+            str_replace('/okta/loggedout', '', $relayState)
+        );
 
         // If RelayState is set, then user will redirct to RelayState URL
         // if not redirect to current site logout URL
-        // And also checking RelayState is one of Subsites URL to prevent malformed RelayState URLS (if have any subsites)
-        if ($relayState && count($subsiteDomains) > 0 && in_array($relayStateWithoutProtocol, $subsiteDomains)) {
+        // And also checking RelayState is one of Subsites URL to prevent
+        // malformed RelayState URLS (if have any subsites)
+        if (class_exists(Subsite::class)
+            && $relayState && count($subsiteDomains) > 0
+            && in_array($relayStateWithoutProtocol, $subsiteDomains)
+        ) {
             $url = $relayState;
         } else {
             $url = Controller::join_links(Director::absoluteBaseURL(), 'okta', 'loggedout');
         }
 
         // Return URL for Unit tests
-        if (SapphireTest::is_running_test()) {
+        if (defined('RUNNING_TESTS')) {
             return $url;
         }
 
         return $this->redirect($url);
-
     }
 
     /**
-     * @return HTMLText|SS_HTTPResponse
+     * @return HTTPResponse|\SilverStripe\ORM\FieldType\DBHTMLText
      */
     public function loggedout()
     {
-        if (Member::currentUser()) {
+        $session = $this->getRequest()->getSession();
+
+        if (Security::getCurrentUser()) {
             $url = Controller::join_links(Director::baseUrl(), 'okta', 'slo');
             return $this->redirect($url);
         }
 
-        if (!Session::get('hasLoggedOut')) {
+        if (!$session->get('hasLoggedOut')) {
             return $this->redirect(Director::baseUrl());
         }
 
-        $okta = Injector::inst()->create('Okta');
         $data = [
-            'Title'        => 'You have logged out!'
+            'Title' => 'You have logged out!'
         ];
 
         return $this
@@ -176,11 +202,10 @@ class OktaController extends Page_Controller
      */
     protected function clearSession()
     {
-        $member = Member::currentUser();
+        $member = Security::getCurrentUser();
         if ($member) {
-            $member->logOut();
-            Session::clear_all();
+            Security::setCurrentUser(null);
+            $this->getRequest()->getSession()->clearAll();
         }
     }
-
 }

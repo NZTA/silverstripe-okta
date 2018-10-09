@@ -4,7 +4,12 @@ Okta provides secure identity management and single sign-on to the application, 
 a mobile device for every employee.
 
 ## Requirements
-SilverStripe 3.x
+SilverStripe 4.x
+
+## Version info
+The master branch of this module is currently aiming for SilverStripe 4.x compatibility
+
+* [SilverStripe 3.0+ compatible version](https://github.com/NZTA/silverstripe-okta/tree/1.0.0)
 
 ## Configuration
 
@@ -16,15 +21,15 @@ https://developers.onelogin.com/saml/online-tools/x509-certs/obtain-self-signed-
 These certificates can be defined with any name you wish and can be stored anywhere on the server. You will also need 
 to upload the certificates to your Okta application.
 
-You will then need to add the following environment variables in your `_ss_environment.php` file:
+You will then need to add the following environment variables in your `.env` file:
 
 | Variable | Example value | Notes |
 | ------ | ------ | ------ |
 | SS_OKTA_SP_ISSUER | https://yourdomain.co.nz | Your application domain name |
 | SS_OKTA_SP_LOGOUT_URL | https://yourdomain.co.nz/okta/slo | - |
-| SS_OKTA_SP_X509 | file_get_contents('/var/www/certs/org-sp.crt') | Example path to generated cert for SLO |
-| SS_OKTA_SP_PEM | file_get_contents('/var/www/certs/org-sp.pem') | Example path to generated private key for cert above for SLO |
-| SS_OKTA_IDP_X509CERT | file_get_contents('/var/www/certs/org-idp.crt') | Download this certificate from Okta |
+| SS_OKTA_SP_X509 | '/var/www/certs/org-sp.crt' | Example path to generated cert for SLO |
+| SS_OKTA_SP_PEM | '/var/www/certs/org-sp.pem' | Example path to generated private key for cert above for SLO |
+| SS_OKTA_IDP_X509CERT | '/var/www/certs/org-idp.crt' | Download this certificate from Okta |
 | SS_OKTA_IDP_ISSUER | http://okta.com/XYZ123 | - |
 | SS_OKTA_IDP_LOGIN_URL | https://org.okta.com/app/appname/XYZ123/sso/saml | - |
 | SS_OKTA_IDP_LOGOUT_URL | https://org.okta.com/app/appname/XYZ123/slo/saml | - |

@@ -1,4 +1,9 @@
 <?php
+namespace NZTA\Okta;
+
+use SilverStripe\ORM\DataExtension;
+use SilverStripe\Forms\FieldList;
+use SilverStripe\Forms\ReadonlyField;
 
 class OktaMemberExtension extends DataExtension
 {
