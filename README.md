@@ -3,6 +3,9 @@
 Okta provides secure identity management and single sign-on to the application, whether in the cloud, on-premises or on 
 a mobile device for every employee.
 
+##Requirements
+SilverStripe 3.x
+
 ## Configuration
 
 You will need to setup signing certificates for the SAML assertions for both single login and single logout.
