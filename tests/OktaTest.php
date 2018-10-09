@@ -1,5 +1,22 @@
 <?php
 
+namespace NZTA\Okta;
+
+use ReflectionMethod;
+use ReflectionObject;
+use SilverStripe\Control\Controller;
+use SilverStripe\Control\Director;
+use SilverStripe\Control\HTTPRequest;
+use SilverStripe\Control\HTTPResponse;
+use SilverStripe\Core\Config\Config;
+use SilverStripe\Core\Environment;
+use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Dev\FunctionalTest;
+use SilverStripe\Security\Member;
+use SilverStripe\Control\Session;
+use SilverStripe\Security\Security;
+use SilverStripe\Subsites\Model\Subsite;
+
 class OktaTest extends FunctionalTest
 {
 
@@ -16,27 +33,25 @@ class OktaTest extends FunctionalTest
     public static $disable_themes = true;
 
     /**
-     * @var \Okta
+     * @var Okta
      */
     private $okta;
 
     /**
-     * @var \Member
+     * @var Member
      */
     private $member;
 
-    /**
-     * @var \Session
-     */
-    private $session;
 
     public function setUp()
     {
         parent::setUp();
+        if (!defined('RUNNING_TESTS')) {
+            define('RUNNING_TESTS', true);
+        }
 
-        $this->okta = Injector::inst()->create('Okta');
-        $this->member = $this->objFromFixture('Member', 'member1');
-        $this->session = new Session([]);
+        $this->okta = Injector::inst()->create(Okta::class);
+        $this->member = $this->objFromFixture(Member::class, 'member1');
     }
 
     /**
@@ -44,20 +59,22 @@ class OktaTest extends FunctionalTest
      */
     public function testUserAccessToPageWithoutLoggedIn()
     {
-        if (defined('SS_OKTA_IP_WHITELIST')) {
+        if (!empty(Environment::getEnv('SS_OKTA_IP_WHITELIST'))) {
             $this->markTestSkipped('The SS_OKTA_IP_WHITELIST has been defined so cannot run this test.');
         }
 
         $page = $this->objFromFixture('Page', 'test-page');
-        $filter = Injector::inst()->get('OktaRequestFilter');
+        $middleware = Injector::inst()->get(OktaMiddleware::class);
 
-        $request = new SS_HTTPRequest('GET', $page->AbsoluteLink());
-        $result = $filter->preRequest($request, $this->session, new DataModel());
+        $request = new HTTPRequest('GET', $page->AbsoluteLink());
+        $request->setSession($this->session());
+        $result = $middleware->preRequest($request, new HTTPResponse());
 
         // Ensure user redirect to Okta to login
         // if unit test running return false before redirect to Okta
         $this->assertFalse($result);
     }
+
 
     /**
      * trying to logout from okta
@@ -65,8 +82,7 @@ class OktaTest extends FunctionalTest
     public function testGetlogoutUrl()
     {
         $url = $this->okta->getLogoutUrl();
-
-        $this->assertContains(SS_OKTA_IDP_LOGOUT_URL, $url);
+        $this->assertContains(Environment::getEnv('SS_OKTA_IDP_LOGOUT_URL'), $url);
     }
 
     /**
@@ -75,7 +91,6 @@ class OktaTest extends FunctionalTest
     public function testUserWithoutSessionData()
     {
         $login = $this->okta->isLoggedIn();
-
         $this->assertFalse($login);
     }
 
@@ -95,6 +110,8 @@ class OktaTest extends FunctionalTest
      */
     public function testUserWithSessionData()
     {
+        $session = $this->session();
+
         $data = [
             'FirstName' => ['first name'],
             'Surname'   => ['surname'],
@@ -102,9 +119,9 @@ class OktaTest extends FunctionalTest
             'Login'     => 'myemail@abc.com',
             'SID'       => 'S-1-157275455'
         ];
-        Session::set('samlUserdata', $data);
-        Session::set('samlNameId', 'myemail@abc.com');
-        Session::set('samlSessionIndex', 'id1494472649231.1217840392');
+        $session->set('samlUserdata', $data);
+        $session->set('samlNameId', 'myemail@abc.com');
+        $session->set('samlSessionIndex', 'id1494472649231.1217840392');
 
         $login = $this->okta->isLoggedIn();
 
@@ -116,6 +133,8 @@ class OktaTest extends FunctionalTest
      */
     public function testUserWithSessionDataInvalidEmail()
     {
+        $session = $this->session();
+
         $data = [
             'FirstName' => ['first name'],
             'Surname'   => ['surname'],
@@ -123,13 +142,13 @@ class OktaTest extends FunctionalTest
             'Login'     => 'invalid email',
             'SID'       => 'S-1-157275455'
         ];
-        Session::set('samlUserdata', $data);
-        Session::set('samlNameId', 'invalid email');
-        Session::set('samlSessionIndex', 'id1494472649231.1217840392');
+        $session->set('samlUserdata', $data);
+        $session->set('samlNameId', 'invalid email');
+        $session->set('samlSessionIndex', 'id1494472649231.1217840392');
 
         try {
             $this->okta->isLoggedIn();
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $this->assertEquals(400, $e->getCode());
             $this->assertEquals("Email must be a valid email address: invalid email", $e->getMessage());
         }
@@ -140,18 +159,18 @@ class OktaTest extends FunctionalTest
      */
     public function testCheckCurrentIPWithoutSettingWhiteList()
     {
-        if (defined('SS_OKTA_IP_WHITELIST')) {
+        if (!empty(Environment::getEnv('SS_OKTA_IP_WHITELIST'))) {
             $this->markTestSkipped('The SS_OKTA_IP_WHITELIST has been defined so cannot run this test.');
         }
 
-        $reqFilter = Injector::inst()->create('OktaRequestFilter');
+        $reqMiddleware = Injector::inst()->create(OktaMiddleware::class);
 
-        $reflector = new ReflectionObject($reqFilter);
+        $reflector = new ReflectionObject($reqMiddleware);
 
         $method = $reflector->getMethod('isWhitelisted');
         $method->setAccessible(true);
 
-        $this->assertFalse($method->invoke($reqFilter));
+        $this->assertFalse($method->invoke($reqMiddleware));
     }
 
     /**
@@ -159,18 +178,18 @@ class OktaTest extends FunctionalTest
      */
     public function testCheckCurrentIPInWhiteList()
     {
-        if (!defined('SS_OKTA_IP_WHITELIST')) {
-            define('SS_OKTA_IP_WHITELIST', $_SERVER['REMOTE_ADDR']);
+        if (empty(Environment::getEnv('SS_OKTA_IP_WHITELIST'))) {
+            Environment::setEnv('SS_OKTA_IP_WHITELIST', $_SERVER['REMOTE_ADDR']);
         }
 
-        $reqFilter = Injector::inst()->create('OktaRequestFilter');
+        $reqMiddleware = Injector::inst()->create(OktaMiddleware::class);
 
-        $reflector = new ReflectionObject($reqFilter);
+        $reflector = new ReflectionObject($reqMiddleware);
 
         $method = $reflector->getMethod('isWhitelisted');
         $method->setAccessible(true);
 
-        $this->assertTrue($method->invoke($reqFilter));
+        $this->assertTrue($method->invoke($reqMiddleware));
     }
 
     /**
@@ -178,14 +197,14 @@ class OktaTest extends FunctionalTest
      */
     public function testTimeSession()
     {
-        $reqFilter = Injector::inst()->create('OktaRequestFilter');
+        $reqMiddleware = Injector::inst()->create(OktaMiddleware::class);
 
-        $reflector = new ReflectionObject($reqFilter);
+        $reflector = new ReflectionObject($reqMiddleware);
 
         $method = $reflector->getMethod('isTimeLimitedSession');
         $method->setAccessible(true);
 
-        $this->assertTrue($method->invoke($reqFilter));
+        $this->assertTrue($method->invoke($reqMiddleware));
     }
 
     /**
@@ -193,15 +212,16 @@ class OktaTest extends FunctionalTest
      */
     public function testCheckSetTimeLimit()
     {
-        define('SS_SESSION_TIMELIMIT_WHITELIST', $_SERVER['REMOTE_ADDR']);
-        $reqFilter = Injector::inst()->create('OktaRequestFilter');
+        Environment::setEnv('SS_SESSION_TIMELIMIT_WHITELIST', $_SERVER['REMOTE_ADDR']);
 
-        $reflector = new ReflectionObject($reqFilter);
+        $reqMiddleware = Injector::inst()->create(OktaMiddleware::class);
+
+        $reflector = new ReflectionObject($reqMiddleware);
 
         $method = $reflector->getMethod('isTimeLimitedSession');
         $method->setAccessible(true);
 
-        $this->assertFalse($method->invoke($reqFilter));
+        $this->assertFalse($method->invoke($reqMiddleware));
     }
 
     /**
@@ -212,19 +232,19 @@ class OktaTest extends FunctionalTest
         $page = $this->objFromFixture('Page', 'test-page');
         $page->publish('Stage', 'Live');
 
-        $request = new SS_HTTPRequest('get', $page->Link());
+        $request = new HTTPRequest('get', $page->Link());
 
-        $job = Injector::inst()->create('OktaRequestFilter');
+        $job = Injector::inst()->create(OktaMiddleware::class);
 
-        $method = new ReflectionMethod('OktaRequestFilter', 'isURLWhiteListed');
+        $method = new ReflectionMethod(OktaMiddleware::class, 'isURLWhiteListed');
         $method->setAccessible(true);
 
         // check the isURLWhiteListed function before set the URL
         $this->assertFalse($method->invokeArgs($job, [$request]));
 
         // remove already added urls and add new url for test
-        Config::inst()->remove('OktaRequestFilter', 'okta_whitelist_urls');
-        Config::inst()->update('OktaRequestFilter', 'okta_whitelist_urls', [
+        Config::inst()->remove(OktaMiddleware::class, 'okta_whitelist_urls');
+        Config::inst()->update(OktaMiddleware::class, 'okta_whitelist_urls', [
             'test-page-title'
         ]);
 
@@ -236,29 +256,32 @@ class OktaTest extends FunctionalTest
     {
         $this->logInAs($this->member);
 
+        $this->session()->set('samlNameId', 'testSamlName');
         // Check user Logged in before logout
-        $member = Member::currentUser();
+        $member = Security::getCurrentUser();
         $this->assertTrue(isset($member));
 
-        Session::set('samlNameId', 'testSamlName');
-        $controller = Injector::inst()->get('OktaController');
-        $request = new SS_HTTPRequest('GET', '/okta/slo');
+        $controller = Injector::inst()->get(OktaController::class);
+        $request = new HTTPRequest('GET', '/okta/slo');
+
+        $controller->getRequest()->setSession($this->session());
         $result = $controller->slo($request);
 
         // Ensure user redirect to Okta to logged out from Okta
-        $this->assertTrue((strpos($result, SS_OKTA_IDP_LOGOUT_URL) !== false));
+        $this->assertTrue((strpos($result, Environment::getEnv('SS_OKTA_IDP_LOGOUT_URL')) !== false));
 
         // Check User already LoggedOut
-        $member = Member::currentUser();
+        $member = Security::getCurrentUser();
         $this->assertFalse(isset($member));
     }
 
     public function testUserLoggedOutFromOkta()
     {
-        $controller = Injector::inst()->get('OktaController');
+        $controller = Injector::inst()->get(OktaController::class);
         $relayState = Controller::join_links(Director::absoluteBaseURL(), 'okta', 'loggedout');
 
-        $request = new SS_HTTPRequest('POST', '/okta/slo', '', ['RelayState' => $relayState]);
+        $request = new HTTPRequest('POST', '/okta/slo', '', ['RelayState' => $relayState]);
+        $controller->getRequest()->setSession($this->session());
         $result = $controller->slo($request);
 
         // Ensure redirect to relayState
@@ -267,12 +290,13 @@ class OktaTest extends FunctionalTest
 
     public function testSubsiteUserLoggedOutFromOkta()
     {
-        $subsite = $this->objFromFixture('Subsite', 'subsite1');
+        $subsite = $this->objFromFixture(Subsite::class, 'subsite1');
 
-        $controller = Injector::inst()->get('OktaController');
+        $controller = Injector::inst()->get(OktaController::class);
         $relayState = Controller::join_links($subsite->domain(), 'okta', 'loggedout');
 
-        $request = new SS_HTTPRequest('POST', '/okta/slo', '', ['RelayState' => $relayState]);
+        $request = new HTTPRequest('POST', '/okta/slo', '', ['RelayState' => $relayState]);
+        $controller->getRequest()->setSession($this->session());
         $result = $controller->slo($request);
 
         // Ensure redirect to relayState
@@ -283,10 +307,11 @@ class OktaTest extends FunctionalTest
     {
         $unauthorizedDomain = 'http://example.org';
 
-        $controller = Injector::inst()->get('OktaController');
+        $controller = Injector::inst()->get(OktaController::class);
         $relayState = Controller::join_links($unauthorizedDomain, 'okta', 'loggedout');
 
-        $request = new SS_HTTPRequest('POST', '/okta/slo', '', ['RelayState' => $relayState]);
+        $request = new HTTPRequest('POST', '/okta/slo', '', ['RelayState' => $relayState]);
+        $controller->getRequest()->setSession($this->session());
         $result = $controller->slo($request);
 
         // Ensure redirect to relayState

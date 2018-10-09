@@ -4,7 +4,12 @@ Okta provides secure identity management and single sign-on to the application, 
 a mobile device for every employee.
 
 ##Requirements
-SilverStripe 3.x
+SilverStripe 4.x
+
+##Version info
+The master branch of this module is currently aiming for SilverStripe 4.x compatibility
+
+* [SilverStripe 3.0+ compatible version](https://github.com/NZTA/silverstripe-okta/tree/1.0.0)
 
 ## Configuration
 
