@@ -10,6 +10,12 @@
     "cms"
   ],
   "license": "BSD-3-Clause",
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "git@github.com:micmania1/php-saml.git"
+    }
+  ],
   "support": {
     "issues": "https://github.com/NZTransportAgency/okta/issues"
   },
@@ -17,7 +23,8 @@
         "silverstripe/framework": "~3.4",
         "silverstripe/cms": "~3.4",
         "silverstripe/queuedjobs": "^2.9",
-        "guzzlehttp/guzzle": "^6.2"
+        "guzzlehttp/guzzle": "^6.2",
+        "onelogin/php-saml": "dev-sign-logout-request"
     },
     "require-dev": {
         "phpunit/PHPUnit": "~3.7"

@@ -6,7 +6,7 @@ class OktaTest extends FunctionalTest
     /**
      * @var string
      */
-    public static $fixture_file = 'okta/tests/fixtures/PageTest.yml';
+    public static $fixture_file = __DIR__ . 'okta/tests/fixtures/PageTest.yml';
 
     /**
      * Using to prevent BasePage from requiring in JS files that do not exist.
