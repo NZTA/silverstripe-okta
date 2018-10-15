@@ -1,5 +1,18 @@
 <?php
 
+namespace NZTA\Okta;
+
+use Exception;
+use SilverStripe\Control\Controller;
+use SilverStripe\Control\Director;
+use SilverStripe\Control\Email\Email;
+use SilverStripe\Control\HTTPRequest;
+use SilverStripe\Control\Session;
+use SilverStripe\Core\Config\Config;
+use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Security\Member;
+use SilverStripe\Security\Security;
+
 class Okta
 {
     /**
@@ -8,12 +21,12 @@ class Okta
     protected $config;
 
     /**
-     * @var OneLogin_Saml2_Settings
+     * @var \OneLogin_Saml2_Settings
      */
     protected $settings;
 
     /**
-     * @var OneLogin_Saml2_Auth
+     * @var \OneLogin_Saml2_Auth
      */
     protected $auth;
 
@@ -26,13 +39,17 @@ class Okta
     private static $keep_session_on_logout = false;
 
     /**
+     * Okta constructor.
+     *
      * @param array $config
+     *
+     * @throws \OneLogin_Saml2_Error
      */
     public function __construct($config)
     {
         $this->config = $config;
-        $this->settings = new OneLogin_Saml2_Settings($config);
-        $this->auth = new OneLogin_Saml2_Auth($config);
+        $this->settings = new \OneLogin_Saml2_Settings($config);
+        $this->auth = new \OneLogin_Saml2_Auth($config);
     }
 
     /**
@@ -44,7 +61,7 @@ class Okta
     }
 
     /**
-     * @return OneLogin_Saml2_Settings
+     * @return \OneLogin_Saml2_Settings
      */
     public function getSettings()
     {
@@ -52,7 +69,7 @@ class Okta
     }
 
     /**
-     * @return OneLogin_Saml2_Auth
+     * @return \OneLogin_Saml2_Auth
      */
     public function getAuth()
     {
@@ -68,7 +85,8 @@ class Okta
     }
 
     /**
-     * @return string|null
+     * @return null|string
+     * @throws \OneLogin_Saml2_Error
      */
     public function getLogoutUrl()
     {
@@ -78,7 +96,8 @@ class Okta
 
         // Set RelayState to current site/subsite logout url
         // Redirect to this logout url after logout from Okta
-        $parameters['RelayState'] = Controller::join_links(Director::absoluteBaseURL(), 'okta', 'loggedout');
+        $relayState = Controller::join_links(Director::absoluteBaseURL(), 'okta', 'loggedout');
+        $parameters['RelayState'] = $relayState;
 
         $security = $this->getSettings()->getSecurityData();
         if (isset($security['logoutRequestSigned']) && $security['logoutRequestSigned']) {
@@ -91,7 +110,7 @@ class Okta
             $parameters['Signature'] = $signature;
         }
 
-        $url = OneLogin_Saml2_Utils::redirect(
+        $url = \OneLogin_Saml2_Utils::redirect(
             $this->getAuth()->getSLOurl(),
             $parameters,
             true
@@ -101,16 +120,19 @@ class Okta
     }
 
     /**
-     * Helper that uses OneLogin to create encrypted SAML request used for logging out
+     * Helper that uses OneLogin to create encrypted SAML request
+     * used for logging out
+     *
      * @return string
      */
     protected function createLogoutRequest()
     {
-        $logoutRequest = new OneLogin_Saml2_LogoutRequest(
+        $session = $this->getSession();
+        $logoutRequest = new \OneLogin_Saml2_LogoutRequest(
             $this->getSettings(),
             null,
-            Session::get('samlNameId'),
-            Session::get('IdPSessionIndex')
+            $session->get('samlNameId'),
+            $session->get('IdPSessionIndex')
         );
 
         return $logoutRequest->getRequest();
@@ -118,47 +140,57 @@ class Okta
 
     /**
      * @return bool
+     * @throws \SilverStripe\ORM\ValidationException
      */
     public function isLoggedIn()
     {
-        $userData = Session::get('samlUserdata');
-        $email = Session::get('samlNameId');
-        $sessionIdx = Session::get('samlSessionIndex');
+        $session = $this->getSession();
+
+        $userData = $session->get('samlUserdata');
+        $email = $session->get('samlNameId');
+        $sessionIdx = $session->get('samlSessionIndex');
+        $currentMember = Security::getCurrentUser();
 
         if ($userData && $email && $sessionIdx) {
             $member = $this->findOrCreateMember($userData, $email);
 
-            // If the user id has changed, we log the user in otherwise don't do anything
+            // If the user id has changed,
+            // we log the user in otherwise don't do anything
             // If we log the user in regardless, it clears the above sessions data
             // and forces them back to Okta
-            if ($member->ID != Member::currentUserID()) {
-                $member->logIn();
+            if ($currentMember && $member->ID != $currentMember->ID) {
+                Security::setCurrentUser($member);
             }
 
             return true;
         }
 
         // Anybody who gets here should be logged out
-        $member = Member::currentUser();
-        if ($member) {
-            $member->logOut();
+        if ($currentMember) {
+            Security::setCurrentUser(null);
         }
 
         return false;
     }
 
     /**
-     * Finds an existing member or create a new one. This method logs the user in as that
+     * Finds an existing member or create a new one.
+     * This method logs the user in as that
      * method if they aren't already logged in (as that member).
      *
      * @param array $userData
+     * @param string $email
      *
      * @return Member|false
+     * @throws \SilverStripe\ORM\ValidationException
      */
     protected function findOrCreateMember($userData, $email)
     {
-        if (!Email::validEmailAddress($email)) {
-            throw new Exception('Email must be a valid email address: ' . $email, 400);
+        if (!Email::is_valid_address($email)) {
+            throw new Exception(
+                sprintf('Email must be a valid email address: %s', $email),
+                400
+            );
         }
 
         if (empty($userData['SID']) || empty($userData['SID'][0])) {
@@ -184,17 +216,21 @@ class Okta
      * Attempts a single sign on
      *
      * @return bool
+     * @throws \OneLogin_Saml2_Error
+     * @throws \SilverStripe\ORM\ValidationException
      */
     public function sso()
     {
-        $requestId = Session::get('AuthNRequestID');
+        $session = $this->getSession();
+
+        $requestId = $session->get('AuthNRequestID');
         $this->getAuth()->processResponse($requestId);
 
-        Session::set('lastActive', time());
-        Session::set('samlUserdata', $this->getAuth()->getAttributes());
-        Session::set('samlNameId', $this->getAuth()->getNameId());
-        Session::set('samlSessionIndex', $this->getAuth()->getSessionIndex());
-        Session::clear('AuthNRequestID');
+        $session->set('lastActive', time());
+        $session->set('samlUserdata', $this->getAuth()->getAttributes());
+        $session->set('samlNameId', $this->getAuth()->getNameId());
+        $session->set('samlSessionIndex', $this->getAuth()->getSessionIndex());
+        $session->clear('AuthNRequestID');
 
         return $this->isLoggedIn();
     }
@@ -219,10 +255,21 @@ class Okta
 
         // Reason behind escaping processSLO method is,
         // this method set headers to redirect to logout URL and it calls exit() method
-        if (!SapphireTest::is_running_test()) {
+        if (!defined('RUNNING_TESTS')) {
             $this->getAuth()->processSLO(Config::inst()->get('Okta', 'keep_session_on_logout'));
         }
     }
 
+    /**
+     * @return Session
+     */
+    private function getSession()
+    {
+        if (defined('RUNNING_TESTS')) {
+            return Controller::curr()->getRequest()->getSession();
+        } else {
+            $request = Injector::inst()->get(HTTPRequest::class);
+            return $request->getSession();
+        }
+    }
 }
-

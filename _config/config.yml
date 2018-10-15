@@ -1,21 +1,21 @@
 ---
 name: 'okta'
 ---
-Injector:
-  Okta:
-    factory: OktaFactory
-  RequestProcessor:
+SilverStripe\Core\Injector\Injector:
+  NZTA\Okta\Okta:
+    factory: NZTA\Okta\OktaFactory
+  SilverStripe\Control\Director:
     properties:
-      filters:
-        - '%$OktaRequestFilter'
+      Middlewares:
+        OktaMiddleware: %$NZTA\Okta\OktaMiddleware
 
-Member:
+SilverStripe\Security\Member:
   extensions:
-    - 'OktaMemberExtension'
+    - 'NZTA\Okta\OktaMemberExtension'
 
-Director:
+SilverStripe\Control\Director:
   rules:
-    'okta//$Action': 'OktaController'
+    'okta//$Action': 'NZTA\Okta\OktaController'
 
-Security:
+SilverStripe\Security\Security:
   logout_url: 'okta/slo'
