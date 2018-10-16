@@ -256,7 +256,7 @@ class Okta
         // Reason behind escaping processSLO method is,
         // this method set headers to redirect to logout URL and it calls exit() method
         if (!defined('RUNNING_TESTS')) {
-            $this->getAuth()->processSLO(Config::inst()->get('Okta', 'keep_session_on_logout'));
+            $this->getAuth()->processSLO(Config::inst()->get(Okta::class, 'keep_session_on_logout'));
         }
     }
 
