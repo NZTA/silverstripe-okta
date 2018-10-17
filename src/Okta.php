@@ -3,6 +3,10 @@
 namespace NZTA\Okta;
 
 use Exception;
+use OneLogin\Saml2\Auth;
+use OneLogin\Saml2\Settings;
+use OneLogin\Saml2\Utils;
+use OneLogin\Saml2\LogoutRequest;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\Email\Email;
@@ -21,7 +25,7 @@ class Okta
     protected $config;
 
     /**
-     * @var \OneLogin_Saml2_Settings
+     * @var Settings
      */
     protected $settings;
 
@@ -48,8 +52,8 @@ class Okta
     public function __construct($config)
     {
         $this->config = $config;
-        $this->settings = new \OneLogin_Saml2_Settings($config);
-        $this->auth = new \OneLogin_Saml2_Auth($config);
+        $this->settings = new Settings($config);
+        $this->auth = new Auth($config);
     }
 
     /**
@@ -61,7 +65,7 @@ class Okta
     }
 
     /**
-     * @return \OneLogin_Saml2_Settings
+     * @return Settings
      */
     public function getSettings()
     {
@@ -110,7 +114,7 @@ class Okta
             $parameters['Signature'] = $signature;
         }
 
-        $url = \OneLogin_Saml2_Utils::redirect(
+        $url = Utils::redirect(
             $this->getAuth()->getSLOurl(),
             $parameters,
             true
@@ -128,7 +132,7 @@ class Okta
     protected function createLogoutRequest()
     {
         $session = $this->getSession();
-        $logoutRequest = new \OneLogin_Saml2_LogoutRequest(
+        $logoutRequest = new LogoutRequest(
             $this->getSettings(),
             null,
             $session->get('samlNameId'),

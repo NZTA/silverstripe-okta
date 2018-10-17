@@ -13,7 +13,7 @@
   "repositories": [
     {
       "type": "vcs",
-      "url": "git@github.com:micmania1/php-saml.git"
+      "url": "https://github.com/quantum-dragons/php-saml.git"
     }
   ],
   "support": {
@@ -24,7 +24,7 @@
     "silverstripe/framework": "^4.0",
     "symbiote/silverstripe-queuedjobs": "^4.2",
     "guzzlehttp/guzzle": "^6.3",
-    "onelogin/php-saml": "dev-sign-logout-request"
+    "onelogin/php-saml": "dev-feature/sign-logout-request"
   },
   "require-dev": {
     "phpunit/phpunit": "^5.7"

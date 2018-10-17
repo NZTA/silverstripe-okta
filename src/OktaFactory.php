@@ -2,10 +2,11 @@
 
 namespace NZTA\Okta;
 
-use OneLogin_Saml2_Utils;
+use OneLogin\Saml2\Utils;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\Environment;
 use SilverStripe\Core\Injector\Factory;
+
 
 class OktaFactory implements Factory
 {
@@ -45,8 +46,8 @@ class OktaFactory implements Factory
             'sp' => [
                 'entityId' => Environment::getEnv('SS_OKTA_SP_ISSUER'),
                 'NameIDFormat' => 'urn:oasis:names:tc:SAML:2.0:nameid-format:entity',
-                'x509cert' => !empty($SPX509cert) ? OneLogin_Saml2_Utils::formatCert(file_get_contents($SPX509cert)) : '',
-                'privateKey' => !empty($SPPem) ? OneLogin_Saml2_Utils::formatPrivateKey(file_get_contents($SPPem)) : '',
+                'x509cert' => !empty($SPX509cert) ? Utils::formatCert(file_get_contents($SPX509cert)) : '',
+                'privateKey' => !empty($SPPem) ? Utils::formatPrivateKey(file_get_contents($SPPem)) : '',
                 'assertionConsumerService' => [
                     'url' => 'http://nztaintranet.local/okta/sso',//Controller::join_links(Director::absoluteBaseURL(), 'okta', 'sso'),
                     'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
@@ -59,7 +60,7 @@ class OktaFactory implements Factory
 
             'idp' => [
                 'entityId' => Environment::getEnv('SS_OKTA_IDP_ISSUER'),
-                'x509cert' => !empty($IDPX509cert) ? OneLogin_Saml2_Utils::formatCert(file_get_contents($IDPX509cert)) : '',
+                'x509cert' => !empty($IDPX509cert) ? Utils::formatCert(file_get_contents($IDPX509cert)) : '',
                 'singleSignOnService' => [
                     'url' => $IDPLoginURL,
                     'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
