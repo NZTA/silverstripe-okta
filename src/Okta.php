@@ -162,7 +162,9 @@ class Okta
             // we log the user in otherwise don't do anything
             // If we log the user in regardless, it clears the above sessions data
             // and forces them back to Okta
-            if ($currentMember && $member->ID != $currentMember->ID) {
+            $currentMemberID = ($currentMember) ? $currentMember->ID : null;
+
+            if ($member->ID != $currentMemberID) {
                 Security::setCurrentUser($member);
             }
 
