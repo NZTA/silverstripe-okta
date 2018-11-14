@@ -16,6 +16,7 @@ use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Security\Member;
 use SilverStripe\Security\Security;
+use SilverStripe\Security\IdentityStore;
 
 class Okta
 {
@@ -33,6 +34,11 @@ class Okta
      * @var \OneLogin_Saml2_Auth
      */
     protected $auth;
+
+    /**
+     * @var HTTPRequest
+     */
+    protected $request;
 
     /**
      * This controls whether the current session is kept when the ->slo() method
@@ -165,7 +171,7 @@ class Okta
             $currentMemberID = ($currentMember) ? $currentMember->ID : null;
 
             if ($member->ID != $currentMemberID) {
-                Security::setCurrentUser($member);
+                Injector::inst()->get(IdentityStore::class)->logIn($member, true, $this->request);
             }
 
             return true;
@@ -174,6 +180,7 @@ class Okta
         // Anybody who gets here should be logged out
         if ($currentMember) {
             Security::setCurrentUser(null);
+            Injector::inst()->get(IdentityStore::class)->logOut($member, true, $this->request);
         }
 
         return false;
@@ -275,6 +282,9 @@ class Okta
             return Controller::curr()->getRequest()->getSession();
         } else {
             $request = Injector::inst()->get(HTTPRequest::class);
+
+            $this->request = $request;
+
             return $request->getSession();
         }
     }

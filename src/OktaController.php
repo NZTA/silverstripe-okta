@@ -205,6 +205,7 @@ class OktaController extends \PageController
         $member = Security::getCurrentUser();
         if ($member) {
             Security::setCurrentUser(null);
+            Injector::inst()->get(IdentityStore::class)->logOut($this->getRequest());
             $this->getRequest()->getSession()->clearAll();
         }
     }
