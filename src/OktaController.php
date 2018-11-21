@@ -69,12 +69,6 @@ class OktaController extends \PageController
      */
     public function slo(HTTPRequest $request)
     {
-        $session = $this->getRequest()->getSession();
-        // Allows the user to see the loggedout page. We're not bothered about unsetting
-        // this later as it only exists to protect the website from people who have not
-        // logged in at all.
-        $session->set('hasLoggedOut', true);
-
         try {
             $okta = Injector::inst()->create(Okta::class);
         } catch (OneLogin_Saml2_Error $e) {
@@ -207,7 +201,13 @@ class OktaController extends \PageController
         if ($member) {
             Security::setCurrentUser(null);
             Injector::inst()->get(IdentityStore::class)->logOut($this->getRequest());
-            $this->getRequest()->getSession()->clearAll();
+
+            // Allows the user to see the loggedout page. We're not bothered about unsetting
+            // this later as it only exists to protect the website from people who have not
+            // logged in at all.
+            $session = $this->getRequest()->getSession();
+            $session->clearAll();
+            $session->set('hasLoggedOut', true);
         }
     }
 }
