@@ -2,14 +2,15 @@
 
 namespace NZTA\Okta;
 
-use SilverStripe\Control\Controller;
+use OneLogin_Saml2_Error;
 use SilverStripe\Control\Director;
+use SilverStripe\Security\Security;
+use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\Core\Injector\Injector;
-use SilverStripe\Security\Security;
+use SilverStripe\Security\IdentityStore;
 use SilverStripe\Subsites\Model\Subsite;
-use OneLogin_Saml2_Error;
 
 class OktaController extends \PageController
 {
