@@ -180,7 +180,7 @@ class Okta
         // Anybody who gets here should be logged out
         if ($currentMember) {
             Security::setCurrentUser(null);
-            Injector::inst()->get(IdentityStore::class)->logOut($member, true, $this->request);
+            Injector::inst()->get(IdentityStore::class)->logOut($this->request);
         }
 
         return false;
