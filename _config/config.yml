@@ -7,7 +7,7 @@ SilverStripe\Core\Injector\Injector:
   SilverStripe\Control\Director:
     properties:
       Middlewares:
-        OktaMiddleware: %$NZTA\Okta\OktaMiddleware
+        OktaMiddleware: '%$NZTA\Okta\OktaMiddleware'
 
 SilverStripe\Security\Member:
   extensions:
