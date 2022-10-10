@@ -43,7 +43,7 @@ class OktaTest extends FunctionalTest
     private $member;
 
 
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
         if (!defined('RUNNING_TESTS')) {
@@ -82,7 +82,7 @@ class OktaTest extends FunctionalTest
     public function testGetlogoutUrl()
     {
         $url = $this->okta->getLogoutUrl();
-        $this->assertContains(Environment::getEnv('SS_OKTA_IDP_LOGOUT_URL'), $url);
+        $this->assertStringContainsString(Environment::getEnv('SS_OKTA_IDP_LOGOUT_URL'), $url);
     }
 
     /**
