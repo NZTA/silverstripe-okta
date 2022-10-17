@@ -13,21 +13,27 @@
   "repositories": [
     {
       "type": "vcs",
-      "url": "https://github.com/quantum-dragons/php-saml.git"
+      "url": "https://github.com/silverstripeltd/php-saml.git"
     }
   ],
   "support": {
     "issues": "https://github.com/NZTransportAgency/okta/issues"
   },
   "require": {
+    "onelogin/php-saml": "dev-feature/sign-logout-request",
     "silverstripe/cms": "^4.0",
     "silverstripe/framework": "^4.0",
-    "symbiote/silverstripe-queuedjobs": "^4.2",
-    "guzzlehttp/guzzle": "^6.3",
-    "onelogin/php-saml": "dev-feature/sign-logout-request"
+    "silverstripe/subsites": "^2.6",
+    "symbiote/silverstripe-queuedjobs": "^4.2"
   },
   "require-dev": {
-    "phpunit/phpunit": "^5.7"
+    "phpunit/phpunit": "^9.5",
+    "squizlabs/php_codesniffer": "^3"
+  },
+  "scripts": {
+    "lint": "phpcs -s src/ tests/",
+    "lint-fix": "phpcbf -s src/ tests/",
+    "test": "phpunit -d memory_limit=512M -d flush=1"
   },
   "minimum-stability": "dev",
   "prefer-stable": true
