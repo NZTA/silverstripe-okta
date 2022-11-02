@@ -128,7 +128,7 @@ class OktaController extends \PageController
     {
         $okta->slo();
 
-        $relayState = $request->postVar('RelayState');
+        $relayState = $request->postVar('RelayState') ?? '';
 
         if (class_exists(Subsite::class)) {
             $subsiteDomains = [];
