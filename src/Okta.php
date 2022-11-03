@@ -213,7 +213,7 @@ class Okta
         $member = Member::get()->filter('OktaID', $userData['SID'][0])->first();
         if (!$member) {
             $member = new Member();
-            $member->OktaID = trim($userData['SID'][0]);
+            $member->OktaID = trim($userData['SID'][0] ?? '');
         }
 
         // Update/sync member data

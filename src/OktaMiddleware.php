@@ -216,7 +216,7 @@ class OktaMiddleware implements HTTPMiddleware
             return false;
         }
 
-        $whitelist = array_map('trim', explode(',', Environment::getEnv('SS_OKTA_IP_WHITELIST')));
+        $whitelist = array_map('trim', explode(',', Environment::getEnv('SS_OKTA_IP_WHITELIST') ?? ''));
         return in_array($_SERVER['REMOTE_ADDR'], $whitelist);
     }
 
@@ -239,7 +239,7 @@ class OktaMiddleware implements HTTPMiddleware
             return true;
         }
 
-        $whitelist = array_map('trim', explode(',', Environment::getEnv('SS_SESSION_TIMELIMIT_WHITELIST')));
+        $whitelist = array_map('trim', explode(',', Environment::getEnv('SS_SESSION_TIMELIMIT_WHITELIST') ?? ''));
         return !in_array($_SERVER['REMOTE_ADDR'], $whitelist);
     }
 
@@ -252,7 +252,7 @@ class OktaMiddleware implements HTTPMiddleware
      */
     private function isURLWhiteListed($request)
     {
-        $whitelist = Config::inst()->get(OktaMiddleware::class, 'okta_whitelist_urls');
+        $whitelist = (array) Config::inst()->get(OktaMiddleware::class, 'okta_whitelist_urls');
 
         if (empty($whitelist) || !is_array($whitelist)) {
             return false;
