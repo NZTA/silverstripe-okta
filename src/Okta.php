@@ -243,22 +243,17 @@ class Okta
             $uniqueId = $config->get(Member::class, 'unique_identifier_field');
             $idAttribute = is_bool($syncAccount) ? $uniqueId : $syncAccount;
             $filters[$uniqueId] = $userData[$idAttribute][0];
-            if (Director::isTest()) {
-                Injector::inst()->get(\Psr\Log\LoggerInterface::class)->notice(
-                    "Trying to associate existing member with okta account using '$uniqueId' => '$idAttribute'"
-                );
-            }
         }
         $member = Member::get()->filterAny($filters)->Sort('OktaID', 'DESC')->first();
         if (!$member) {
             $member = new Member();
-            $member->OktaID = trim($userData['SID'][0] ?? '');
         }
 
         // Update/sync member data
         $member->Email = $email;
         $member->FirstName = $userData['FirstName'][0];
         $member->Surname = $userData['Surname'][0];
+        $member->OktaID = trim($userData['SID'][0]);
         $member->write();
 
         return $member;
