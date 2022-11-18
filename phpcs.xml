@@ -6,7 +6,7 @@
 	<file>tests</file>
 
 	<!-- base rules are PSR-2 -->
-	<rule ref="PSR2" >
+	<rule ref="PSR12" >
 		<!-- Current exclusions -->
 		<exclude name="PSR1.Methods.CamelCapsMethodName" />
 		<exclude name="PSR2.Classes.PropertyDeclaration.Underscore" />

@@ -1,4 +1,5 @@
 <?php
+
 namespace NZTA\Okta;
 
 use SilverStripe\Control\Controller;

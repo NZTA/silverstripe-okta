@@ -49,6 +49,30 @@ class Okta
     private static $keep_session_on_logout = false;
 
     /**
+     * If a member already has an existing 'standard' account, but then logs in via Okta instead, an error will throw:
+     * > 'Can\'t overwrite existing member #{id} with identical identifier ({name} = {value}))'
+     * Where `name` is `Email` by default, and `value` is the member's email address.
+     *
+     * This is problematic for dual purpose accounts (e.g. logging in with MemberAuthenticator when Okta is unavailable)
+     * and the transition of data between environments, etc. where OktaID's will then not match anymore.
+     *
+     * We can optionally change the behaviour to allow falling back on matching members who do not have a matching
+     * OktaID, but do have a matching `Member.unique_identifier_field` in the system already, by setting `true` here.
+     * Member records will then appropriately update to match the new Okta data.
+     *
+     * This probably shouldn't be enabled in a `live` environment.
+     *
+     * Values: `false` to disable this functionality (Default)
+     *         `true` to lookup SAML Attribute by the name of Member.unique_identifier_field
+     *      or `"name"` if Member.unique_identifier_field should map to a different SAML Attribute name
+     *
+     * @see Member::onBeforeWrite()
+     *
+     * @var boolean|string
+     */
+    private static $sync_existing_accounts = false;
+
+    /**
      * Okta constructor.
      *
      * @param array $config
@@ -210,7 +234,17 @@ class Okta
             throw new Exception('SID not set in user data');
         }
 
-        $member = Member::get()->filter('OktaID', $userData['SID'][0])->first();
+        $filters = [
+            'OktaID' => $userData['SID'][0],
+        ];
+        $config = Config::inst();
+        $syncAccount = $config->get(self::class, 'sync_existing_accounts');
+        if (is_bool($syncAccount) || is_string($syncAccount)) {
+            $uniqueId = $config->get(Member::class, 'unique_identifier_field');
+            $idAttribute = is_bool($syncAccount) ? $uniqueId : $syncAccount;
+            $filters[$uniqueId] = $userData[$syncAccount][0];
+        }
+        $member = Member::get()->filterAny($filters)->Sort('OktaID', 'DESC')->first();
         if (!$member) {
             $member = new Member();
             $member->OktaID = trim($userData['SID'][0] ?? '');
