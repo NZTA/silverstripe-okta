@@ -87,6 +87,16 @@ class Okta
     }
 
     /**
+     * Set current HTTP request
+     */
+    public function setRequest(HTTPRequest $request): self
+    {
+        $this->request = $request;
+
+        return $this;
+    }
+
+    /**
      * @return array
      */
     public function getConfig()
@@ -312,6 +322,10 @@ class Okta
      */
     private function getSession()
     {
+        if ($this->request instanceof HTTPRequest) {
+            return $this->request->getSession();
+        }
+
         if (defined('RUNNING_TESTS')) {
             return Controller::curr()->getRequest()->getSession();
         } else {

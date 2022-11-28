@@ -75,6 +75,7 @@ class OktaMiddleware implements HTTPMiddleware
 
         // Create our okta instance
         $okta = Injector::inst()->create(Okta::class);
+        $okta->setRequest($request);
 
         // If the user has logged in, we're good.
         if ($okta->isLoggedIn()) {
